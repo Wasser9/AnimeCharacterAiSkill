@@ -1,0 +1,7 @@
+numpy>=2.0
+scipy>=1.13
+libigl>=2.5
+shapely>=2.0
+opencv-python-headless>=4.9
+pillow>=10
+pyyaml>=6

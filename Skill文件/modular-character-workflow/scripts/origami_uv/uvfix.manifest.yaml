@@ -1,0 +1,47 @@
+# Origami UV pipeline manifest (tool choices, versions, contracts). Copied into every delivery (05_Validation).
+# Re-runs reuse this; per-character settings live in config.yaml only.
+name: origami_uv
+purpose: >
+  Re-layout a character's UVs the way hand-made character sheets are organised: one island per body part
+  (face, skull halves, sleeves, garment front/back, skirt, legs, hair locks ...), seams on hidden sides, upright
+  orientation, mirrored pairs side by side, groups kept contiguous; the source basecolor is migrated onto the new
+  layout, optionally cleaned with an image model and touched up, and the model is exported with both UV sets.
+entry: python run.py --config config.yaml [--from-stage N | --only-stage N] [--objects <mesh> ...] [--texfix-prepare]
+environment (tested):
+  os: Windows 11
+  blender: 4.5 LTS (run with --factory-startup, background)
+  python: 3.11 / 3.12 + packages (see requirements.txt): numpy 2.2, scipy 1.14, libigl 2.6, shapely 2.0,
+          opencv-python-headless 4.10, pillow, pyyaml
+  gpu: not used (all stages CPU, deterministic)
+  memory: unwrap/pack ~1 GB per worker; lower workers / pack_workers when the page file is small
+capabilities:
+  C1_mesh_io: Blender bpy (read blend, foreach_get/foreach_set, FBX/glTF export + import read-back)
+  C2_topology: numpy (welded edge keys, consistent re-orientation, corner union-find charts)
+  C3_segmentation: rules per object (generic: dominant deform bone -> body part, left/right; or character-specific
+                   rules using bone weights, geometry, 64-direction exposure) + surface diffusion, tooth removal,
+                   morphological opening, constrained shortest-path boundary straightening
+  C4_seams: Dijkstra shortest paths on a cost-weighted edge graph (hidden side cheap), libigl cut_to_disk fallback
+  C5_parameterisation: libigl LSCM / uniform Tutte init + SLIM symmetric Dirichlet; relief cuts for cups;
+                       exact overlap test (shapely union) + Fiedler ratio-cut bisection
+  C6_packing: raster packer (FFT collision), affinity cost (same-group contact), 6 parameter variants, best kept
+  C7_texture_transfer: triangle-id rasteriser, 2x supersampling, linear-light bilinear resampling, coverage-weighted box filter
+  C8_padding: pull-push (Gortler) hole filling, 16 px band, soft fade into a flat neutral background
+  C9_validation: UV gate (bounds, flips, overlap, min gap, density), colour fidelity, export read-back, blend reload signature
+  C10_outline_smoothing: arc-length Gaussian target outline (corners kept) + SLIM soft constraints (fold-free)
+  C11_texture_cleanup: image-model edits per crop (e.g. ChatGPT in a browser, manual approval) + silhouette registration
+                       (affine ECC + SDF flow, best of stretch/fit/fill), interior-only composite, high-pass detail
+                       add-back, per-island colour gain, guided-filter rim snap, exposure-weighted seam levelling
+  C12_touchups: region-targeted fixes (stripe removal, seam hem redraw, white -> skin, despeckle) + gutter re-pad
+determinism: no random numbers; fixed iteration counts; process parallelism only across independent objects/variants
+stages:
+  0_inspect:  {in: input blend, out: work/inspect/*.npz, src_tex/*.png, scene.json}
+  1_exposure: {out: work/exposure.npz}
+  2_unwrap:   {out: work/unwrap/<obj>.pkl, invariant: no vertex/face change, seams only}
+  3_pack:     {out: work/pack/<obj>_v*.pkl, <obj>.pkl (best variant)}
+  4_transfer: {out: final/textures/<obj>_basecolor.png (sRGB 8 bit), work/transfer/<obj>_migrated.png, texfix, touchup}
+  5_gate:     {out: guides/*, metrics uv_gate, work/apply/<obj>.npz}
+  6_export:   {out: final/*.blend|fbx|glb|gltf, validation/export_readback.json, invariant: geometry/weights/UV_orig/custom normals unchanged}
+  7_review:   {out: review/*.png, UV_Atlas_Overview.png, report.md}
+  8_package:  {out: config.package_dir (01_Model, 02_Textures, 03_UV_Guides, 04_Preview, 05_Validation), rebuilt every run}
+history:
+  - first used on a five-module anime character (Tripo model, 13087 source islands -> 186 panels, 4K atlases)

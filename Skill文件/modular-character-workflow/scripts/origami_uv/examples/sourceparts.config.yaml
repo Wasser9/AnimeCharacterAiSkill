@@ -1,0 +1,76 @@
+# Example: the five-module anime character this pipeline was built on (Tripo model, rigged in Blender, 4K atlases).
+# Paths point at that project; copy and adapt for a new character (see ../config.example.yaml for every option).
+
+title: SourceParts 角色
+input_blend: G:/GithubProject/model/SourceParts_SemanticUV_UE/SourceParts_SemanticUV/final/SourceParts_UV_Rigged.blend
+output: G:/GithubProject/model/SourceParts_SemanticUV_UE/SourceParts_SemanticUV/origami_uv/output
+package_dir: G:/GithubProject/model/SourceParts_SemanticUV_UE/SourceParts_SemanticUV/finaloutput
+blender: D:/Program/Blender4.5/blender.exe
+python_packages: C:/Users/Liyanghao/Documents/Codex/2026-10-13/blender/work/uv_python
+
+objects: [CHR_Head, CHR_Body, CHR_Legs, CHR_FrontHair, CHR_BackHair_Ears]
+display_names:
+  CHR_Head: 脸部与头部
+  CHR_Body: 上身衣服、围巾与裙子
+  CHR_Legs: 腿部与鞋子
+  CHR_FrontHair: 刘海与前发
+  CHR_BackHair_Ears: 后发与猫耳
+
+source_uv: UV_orig                     # the Tripo UV, already renamed in this blend
+source_texture: {reference_suffix: _NormalReference}
+compare_previous_uv: UV_clean          # the previous delivery's layout, kept in the input blend
+
+texture_size: 4096
+supersample: 2
+workers: 5
+pack_workers: 6
+transfer_workers: 2
+exposure: {directions: 64, resolution: 2048}
+
+# hand-written rules for this character (pipeline/segment.py); a new character starts with 'generic'
+segmenters: {CHR_Legs: legs, CHR_Body: body, CHR_Head: head, CHR_FrontHair: front_hair, CHR_BackHair_Ears: back_hair}
+
+texfix:
+  enabled: true
+  detail_override: {CHR_Body__03: 0.0, CHR_Body__04: 0.0}   # plaid/collar: keep the model's lines, no original high-pass
+
+touchup:
+  - {object: CHR_Legs, regions: [Leg_L, Leg_R], op: remove_stripe}        # grey line on the socks = baked Tripo shadow
+  - {object: CHR_Legs, regions: [Leg_L, Leg_R], op: seam_hem}             # sock hem meets cleanly at the back seam
+  - object: CHR_Legs                                                       # white top of the leg panels = bare thigh
+    regions: [Leg_L, Leg_R, LegTop_L, LegTop_R]
+    op: white_to_skin
+    params: {skin_from: {object: CHR_Head, regions: [Neck]}}
+  - {object: CHR_Legs, regions: [Leg_L, Leg_R], op: despeckle}            # leftover highlight specks on the hem
+
+unwrap:
+  slim_iterations: 40
+  max_relief_cuts: 3
+  accept: {conf95: 2.0, area05: 0.4, area95: 2.5}
+
+pack:
+  mode: affinity
+  grid: 2048
+  pad_cells: 4
+  target_utilisation: 0.70
+  groups:
+    CHR_Head: [face, eye_R, eye_L, mouth, ears, neck, skull]
+    CHR_Body: [torso, sleeves, skirt, scarf, collar, hands]
+    CHR_Legs: [legs, shoes, soles, shoes_inner]
+    CHR_FrontHair: [bangs, sidelocks, arch, shell, clip, bangs_inner, sidelocks_inner, arch_inner, shell_inner]
+    CHR_BackHair_Ears: [back_outer, hood, ears, back_inner]
+  merge:
+    CHR_Head: {brows: mouth}
+    CHR_Body: {misc: torso, scarf_small: scarf}
+    CHR_Legs: {feet: shoes_inner}
+    CHR_FrontHair: {}
+    CHR_BackHair_Ears: {misc: ears, hood_inner: back_inner}
+
+export:
+  blend_name: SourceParts_OrigamiUV_Rigged.blend
+  fbx_ue: SK_SourceParts_OrigamiUV_UE.fbx
+  fbx_embedded: SK_SourceParts_OrigamiUV_Embedded.fbx
+  glb: SourceParts_OrigamiUV.glb
+  gltf: SourceParts_OrigamiUV_External.gltf
+  rig_name: SK_SourceParts
+  mesh_name: SKM_SourceParts_OrigamiUV

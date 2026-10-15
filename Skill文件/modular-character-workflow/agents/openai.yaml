@@ -1,0 +1,6 @@
+interface:
+  display_name: "模块化角色工作流"
+  short_description: "设定图四视图提示词与接口约定；AI 模型按部位重排 UV、迁移与清理贴图；导入 UE5 做成可操控角色"
+  default_prompt: "使用 $modular-character-workflow，根据我的角色资料判断当前阶段（设定图 / 模型 UV 与贴图 / UE 实机），沿用已确认的模块与接口约定完成本阶段工作。"
+policy:
+  allow_implicit_invocation: true

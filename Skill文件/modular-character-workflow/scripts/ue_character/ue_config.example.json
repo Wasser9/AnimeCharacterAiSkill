@@ -1,0 +1,15 @@
+{
+  "name": "SourceParts",
+  "package_dir": "G:/GithubProject/model/SourceParts_SemanticUV_UE/SourceParts_SemanticUV/finaloutput",
+  "fbx": "01_Model/SK_SourceParts_OrigamiUV_UE.fbx",
+  "textures_dir": "02_Textures",
+  "parts": ["CHR_Head", "CHR_Body", "CHR_Legs", "CHR_FrontHair", "CHR_BackHair_Ears"],
+  "two_sided": ["CHR_Body", "CHR_FrontHair", "CHR_BackHair_Ears"],
+  "capsule_half_height": 86.0,
+  "capsule_radius": 30.0,
+  "mesh_yaw": -90.0,
+  "retarget_suffix": "_SP",
+  "out_dir": "G:/GithubProject/model/SourceParts_SemanticUV_UE/SourceParts_SemanticUV/ue_character",
+  "verify_bones": ["pelvis", "head", "hand_l", "hand_r", "upperarm_l", "upperarm_r", "foot_l", "foot_r", "ball_l", "ball_r",
+                   "hair_back_center_03", "skirt_00_02"]
+}

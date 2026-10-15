@@ -1,0 +1,77 @@
+# Origami UV pipeline - configuration template. Copy next to the character's files, fill in, then:
+#   python <skill>/scripts/origami_uv/run.py --config config.yaml
+# Relative paths are relative to this file.
+
+title: 角色名                                    # used in the delivery README
+input_blend: model/Character_Rigged.blend         # read only, never written (meshes + optional armature + materials)
+output: origami_output                            # every product of the run goes here
+package_dir: finaloutput                          # stage 8: tidy delivery folder, rebuilt on every run
+blender: D:/Program/Blender4.5/blender.exe
+python_packages: null                             # extra site-packages folder (numpy/scipy/libigl/...), or null
+
+# meshes to re-layout, one texture atlas each (names as in the blend). All of them take part in the exposure pass.
+objects: [CHR_Head, CHR_Body, CHR_Legs, CHR_FrontHair, CHR_BackHair_Ears]
+display_names:                                   # optional, for sheets and reports
+  CHR_Head: 脸部与头部
+  CHR_Body: 衣服与手
+  CHR_Legs: 腿部袜子与鞋
+  CHR_FrontHair: 刘海
+  CHR_BackHair_Ears: 后发与兽耳
+
+source_uv: UVMap                                  # UV layer the source texture was painted on (kept as UV_orig)
+source_texture:
+  reference_suffix: _NormalReference              # optional untouched copy '<object><suffix>' holding the original
+                                                  # material; without it the object's own Base Color image is used
+compare_previous_uv: null                         # name of an earlier layout in the input blend for a 3-way comparison
+
+texture_size: 4096
+supersample: 2
+workers: 5               # unwrap / guides processes
+pack_workers: 6          # each packing job needs ~1 GB at peak
+transfer_workers: 2
+
+exposure: {directions: 64, resolution: 2048}
+
+# which segmentation rules run per object (pipeline/segment.py SEGMENTERS). Default 'generic': one panel per connected
+# piece x body part of the dominant deform bone, left/right split. Character-specific rules can be added to segment.py.
+segmenters: {}
+#  CHR_Legs: legs        # rules written for the example character (see examples/sourceparts.config.yaml)
+
+# stage 4b: image-model clean-up of the migrated textures. `run.py --texfix-prepare` writes crops to
+# output/work/texfix/crops; edited images with the same names go to output/work/texfix/gpt_results.
+texfix:
+  enabled: true
+  detail_override: {}    # {<crop name>: 0.0} = do not add the original fine detail back (e.g. plaid, line art)
+
+# stage 4c: targeted fixes after the clean-up (pipeline/touchup.py); region names from guides/<object>_regions.json
+touchup: []
+#  - {object: CHR_Legs, regions: [Leg_L, Leg_R], op: remove_stripe}
+#  - {object: CHR_Legs, regions: [Leg_L, Leg_R], op: seam_hem}
+#  - {object: CHR_Legs, regions: [Leg_L, Leg_R, LegTop_L, LegTop_R], op: white_to_skin,
+#     params: {skin_from: {object: CHR_Head, regions: [Neck]}}}
+#  - {object: CHR_Legs, regions: [Leg_L, Leg_R], op: despeckle}
+
+unwrap:
+  slim_iterations: 40
+  max_relief_cuts: 3
+  accept: {conf95: 2.0, area05: 0.4, area95: 2.5}
+
+pack:
+  mode: affinity          # affinity (groups stay contiguous, islands interlock) | blocks (strict rectangles per group)
+  grid: 2048              # packing raster (2 px per cell on a 4K sheet)
+  pad_cells: 4            # 4 cells each side -> >=16 px gap between islands on 4K
+  target_utilisation: 0.70
+  groups: {}              # optional group order per object, e.g. {CHR_Head: [face, eye_R, eye_L, neck]}; missing
+                          # groups follow in the order the segmenter created them
+  merge: {}               # optional small groups folded into a neighbour, e.g. {CHR_Body: {misc: torso}}
+
+review: {}               # optional closeup_views: {name: [cam, target, ortho_scale, label]} in model-height units
+
+export:
+  blend_name: Character_OrigamiUV_Rigged.blend
+  fbx_ue: SK_Character_OrigamiUV_UE.fbx
+  fbx_embedded: SK_Character_OrigamiUV_Embedded.fbx
+  glb: Character_OrigamiUV.glb
+  gltf: Character_OrigamiUV_External.gltf
+  rig_name: null          # armature to export; null = the one the meshes are skinned to (none for static meshes)
+  mesh_name: SKM_Character_OrigamiUV   # name of the joined mesh in the FBX
